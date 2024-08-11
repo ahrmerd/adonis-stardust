@@ -1,4 +1,6 @@
-require('esbuild').buildSync({
+import esbuild from 'esbuild'
+
+esbuild.buildSync({
   entryPoints: ['src/client/index.ts'],
   outfile: 'client/index.js',
   allowOverwrite: true,

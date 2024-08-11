@@ -1,26 +1,25 @@
-import { ApplicationContract } from '@ioc:Adonis/Core/Application';
-import { RouterContract } from '@ioc:Adonis/Core/Route';
-import { ViewContract } from '@ioc:Adonis/Core/View';
-import StardustMiddleware from '../middleware/Stardust';
-
+import StardustMiddleware from '../middleware/Stardust.js';
+import { ApplicationService } from '@adonisjs/core/types';
+import edge from 'edge.js';
 /*
 |--------------------------------------------------------------------------
 | Stardust Provider
 |--------------------------------------------------------------------------
 */
 export default class StardustProvider {
-  constructor(protected app: ApplicationContract) {}
+  constructor(protected app: ApplicationService) {}
   public static needsApplication = true;
 
   /**
    * Returns list of named routes
    */
-  private getNamedRoutes(Route: RouterContract) {
+  private async getNamedRoutes() {
     /**
      * Only sharing the main domain routes. Subdomains are
      * ignored for now. Let's see if many people need it
      */
-    const mainDomainRoutes = Route.toJSON()?.['root'] ?? [];
+    const router = await this.app.container.make('router');
+    const mainDomainRoutes = router.toJSON()?.['root'] ?? [];
 
     return mainDomainRoutes.reduce<Record<string, string>>((routes, route) => {
       if (route.name) {
@@ -36,8 +35,9 @@ export default class StardustProvider {
   /**
    * Register the `@routes()` tag
    */
-  private registerStardustTag(View: ViewContract) {
-    View.registerTag({
+
+  private registerStardustTag() {
+    edge.registerTag({
       block: false,
       tagName: 'routes',
       seekable: false,
@@ -53,8 +53,8 @@ export default class StardustProvider {
     });
   }
 
-  private registerRoutesGlobal(View: ViewContract, namedRoutes: Record<string, string>) {
-    View.global('routes', (cspNonce?: string) => {
+  private registerRoutesGlobal(namedRoutes: Record<string, string>) {
+    edge.global('routes', (cspNonce?: string) => {
       return `
 <script${cspNonce ? ` nonce="${cspNonce}"` : ''}>
   (globalThis || window).stardust = {namedRoutes: ${JSON.stringify(namedRoutes)}};
@@ -72,15 +72,15 @@ export default class StardustProvider {
     globalThis.stardust = { namedRoutes };
   }
 
-  public ready() {
-    this.app.container.bind('EidelLev/Stardust/Middleware', () => StardustMiddleware);
+  public async ready() {
+    this.app.container.bind(StardustMiddleware, () => new StardustMiddleware());
+    // this.app.container.bind()
+    const namedRoutes = await this.getNamedRoutes();
 
-    this.app.container.withBindings(['Adonis/Core/View', 'Adonis/Core/Route'], (View, Route) => {
-      const namedRoutes = this.getNamedRoutes(Route);
-
-      this.registerRoutesGlobal(View, namedRoutes);
-      this.registerStardustTag(View);
-      this.registerSsrRoutes(namedRoutes);
-    });
+    this.registerRoutesGlobal(namedRoutes);
+    this.registerStardustTag();
+    this.registerSsrRoutes(namedRoutes);
+    // this.app.container.withBindings(['Adonis/Core/View', 'Adonis/Core/Route'], (View, Route) => {
+    // });
   }
 }

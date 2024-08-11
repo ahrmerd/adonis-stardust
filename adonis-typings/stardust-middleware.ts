@@ -1,7 +1,10 @@
-declare module '@ioc:EidelLev/Stardust/Middleware' {
-  import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
+import { HttpContext } from "@adonisjs/core/http";
 
-  export default class StardustMiddleware {
-    public handle(ctx: HttpContextContract, next: () => Promise<void>);
-  }
+// declare module 'EidelLev/Stardust/Middleware' {
+
+  declare class StardustMiddleware {
+    public handle(ctx: HttpContext, next: () => Promise<void>);
+  // }
 }
+
+export {StardustMiddleware as default}
